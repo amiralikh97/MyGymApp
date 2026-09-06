@@ -15,7 +15,7 @@ const DEFAULTS = {
     keepAwake: true,
     theme: 'auto',
     plateIncrement: 2.5,
-    ai: { url: '', key: '', model: 'deepseek-ai/deepseek-v4-pro-0813', proxyHoldsKey: false }
+    ai: { url: '', key: '', model: 'deepseek-ai/deepseek-v4-pro-0813' }
   },
   custom: [],          // user-created exercises
   workouts: [],        // finished workouts (newest last)

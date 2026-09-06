@@ -5,7 +5,7 @@ import { beep, primeAudio } from '../timer.js';
 import { NVIDIA_URL, DEFAULT_MODEL, aiReady } from '../ai.js';
 
 const U = () => state.settings.unit;
-export const BUILD = '2026.09.06';
+export const BUILD = '2026.09.06b';
 
 export function open(ctx) {
   openSheet('Settings', close => {
@@ -238,6 +238,18 @@ export function openAISetup(ctx) {
       el('div', { class: 'pill-h', style: 'margin-bottom:5px' }, label), node,
       hint ? el('div', { class: 'tiny faint', style: 'margin-top:5px' }, hint) : null);
 
+    // Becomes "Start chatting" once a test succeeds, so setup leads somewhere.
+    const done = el('button', {
+      class: 'btn wide ghost',
+      onclick: () => {
+        const go = done.dataset.go === '1';
+        close();
+        // A custom event keeps settings.js from importing chat.js, which would
+        // close an import cycle back through app.js.
+        if (go) document.dispatchEvent(new CustomEvent('ironlog:open-chat'));
+      }
+    }, 'Done');
+
     const persist = () => {
       ai.url = url.value.trim();
       ai.key = key.value.trim();
@@ -288,6 +300,7 @@ export function openAISetup(ctx) {
               status.textContent = reply ? 'Connected \u2014 model replied \u201c' + reply.slice(0, 40) + '\u201d' : 'Connected, but the reply was empty.';
               status.style.color = reply ? 'var(--green)' : 'var(--amber)';
               ctx.refresh();
+              if (reply) { done.classList.remove('ghost'); done.classList.add('primary'); done.textContent = 'Start chatting'; done.dataset.go = '1'; }
             } catch (e) {
               status.textContent = 'Blocked by the browser (CORS) or unreachable. This is what happens when you point straight at NVIDIA \u2014 set up the proxy.';
               status.style.color = 'var(--red)';
@@ -297,8 +310,7 @@ export function openAISetup(ctx) {
         el('button', {
           class: 'btn', onclick: () => { url.value = NVIDIA_URL; persist(); status.textContent = 'Direct NVIDIA URL set \u2014 expect this to be blocked in a browser.'; status.style.color = 'var(--amber)'; }
         }, 'Use NVIDIA URL')),
-      status,
-      el('button', { class: 'btn wide ghost', onclick: close }, 'Done'));
+      status, done);
     return wrap;
   });
 }

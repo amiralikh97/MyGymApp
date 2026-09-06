@@ -66,6 +66,7 @@ new MutationObserver(() => {
 
 /* Floating AI coach button. Lifts clear of the rest timer when it appears. */
 $('#aiFab').addEventListener('click', () => openChat(ctx));
+document.addEventListener('ironlog:open-chat', () => openChat(ctx));
 onRest(() => $('#aiFab').classList.toggle('shift', restLeft() > 0));
 
 $('#sheetClose').addEventListener('click', closeSheet);

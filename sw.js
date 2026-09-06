@@ -1,6 +1,6 @@
 // Bumped on every deploy: the browser only reinstalls this worker when the
 // file's bytes change, so a stale version number means clients never update.
-const CACHE = 'ironlog-v3';
+const CACHE = 'ironlog-v4';
 
 const ASSETS = [
   './', './index.html', './css/app.css', './manifest.webmanifest',

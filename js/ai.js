@@ -14,7 +14,10 @@ export const DEFAULT_MODEL = 'deepseek-ai/deepseek-v4-pro-0813';
 export const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
 export const aiConfig = () => state.settings.ai || {};
-export const aiReady = () => !!(aiConfig().url && (aiConfig().key || aiConfig().proxyHoldsKey));
+// An endpoint is all that is required. The key is optional - the usual setup
+// puts it in the proxy, and a genuinely missing key comes back as a 401 with a
+// message that says so, rather than being guessed at up front.
+export const aiReady = () => !!aiConfig().url;
 
 /* ---------------------------------------------------------------------------
  * Context: a compact picture of the user's training for the system prompt.
@@ -153,10 +156,13 @@ export async function chat(messages, { onDelta, signal } = {}) {
     });
   } catch (e) {
     if (e.name === 'AbortError') throw e;
+    // A blocked cross-origin request is indistinguishable from an offline one
+    // here, so name both likely causes rather than guessing.
+    const direct = /integrate\.api\.nvidia\.com/.test(cfg.url || '');
     throw new Error(
-      'Could not reach the AI endpoint.\n\n' +
-      'If this is NVIDIA\'s API address, the browser blocks it: NVIDIA sends no CORS headers, ' +
-      'so it can only be called through a proxy. See Settings for setup.'
+      'Could not reach the AI endpoint.\n\n' + (direct
+        ? 'This is NVIDIA\'s own address, and a browser cannot call it: NVIDIA sends no CORS headers. Point this at your proxy instead.'
+        : 'Either you are offline, or your proxy rejected this origin. Check that ALLOWED_ORIGIN on the Worker matches ' + location.origin + ' exactly.')
     );
   }
 
