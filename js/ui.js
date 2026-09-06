@@ -20,7 +20,8 @@ const P = {
   search: 'm21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
   note: 'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5',
   flame: 'M12 22c4 0 7-2.7 7-6.5 0-4.6-4.5-6-4.5-9.5 0 0-2 1.4-2 4 0 1.5-1 2-1.5 2-1 0-1.5-1-1.5-2.5C8 12 5 13 5 15.5 5 19.3 8 22 12 22z',
-  copy: 'M9 9h10v12H9zM5 15V3h10v2'
+  copy: 'M9 9h10v12H9zM5 15V3h10v2',
+  edit: 'M12 20h9 M16.4 3.6a2.1 2.1 0 0 1 3 3L7.5 18.5 3 20l1.5-4.5z'
 };
 export function icon(name, cls = '') {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -47,10 +48,15 @@ export function toast(msg, ms = 1900) {
 /* ---------------- bottom sheet ---------------- */
 let sheetClose = null;
 let closeTimer = null;   // pending teardown from a close animation
+let sheetGen = 0;        // bumped on every open; a stale teardown is ignored
+
 export function openSheet(title, buildBody, onClose) {
   const sheet = $('#sheet'), scrim = $('#scrim'), body = $('#sheetBody');
-  // A sheet opened while another is still animating out must not be torn
-  // down by that animation's cleanup.
+  // A sheet opened while another is animating out must survive that animation's
+  // cleanup. Cancelling the timer is not enough on its own - under timer
+  // throttling the teardown can already be queued - so the generation counter
+  // makes the teardown a no-op once a newer sheet exists.
+  sheetGen++;
   clearTimeout(closeTimer); closeTimer = null;
   $('#sheetTitle').textContent = title;
   body.innerHTML = '';
@@ -58,7 +64,9 @@ export function openSheet(title, buildBody, onClose) {
   const content = buildBody(closeSheet);
   if (content) body.append(content);
   sheet.classList.remove('hidden'); scrim.classList.remove('hidden');
-  requestAnimationFrame(() => { sheet.classList.add('up'); scrim.classList.add('up'); });
+  // A timeout rather than requestAnimationFrame: rAF never fires in a
+  // background tab, which would leave the sheet stuck off-screen.
+  setTimeout(() => { sheet.classList.add('up'); scrim.classList.add('up'); }, 16);
   sheetClose = onClose || null;
   document.body.style.overflow = 'hidden';
 }
@@ -68,8 +76,10 @@ export function closeSheet() {
   sheet.classList.remove('up'); scrim.classList.remove('up');
   document.body.style.overflow = '';
   clearTimeout(closeTimer);
+  const gen = sheetGen;
   closeTimer = setTimeout(() => {
     closeTimer = null;
+    if (gen !== sheetGen) return;   // another sheet opened meanwhile - leave it alone
     sheet.classList.add('hidden'); scrim.classList.add('hidden'); $('#sheetBody').innerHTML = '';
   }, 260);
   const fn = sheetClose; sheetClose = null;

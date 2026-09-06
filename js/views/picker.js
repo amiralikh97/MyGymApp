@@ -11,10 +11,14 @@ let lastCat = 'All', lastEq = 'Any', lastQ = '';
 /**
  * Exercise picker. onPick(ids[]) fires with everything selected.
  */
-export function openPicker(onPick, { multi = true, title = 'Add exercises' } = {}) {
-  const chosen = new Set();
+export function openPicker(onPick, { multi = true, title = 'Add exercises', preselect = [] } = {}) {
+  const chosen = new Set(preselect);
 
   openSheet(title, close => {
+    // The callback may open another sheet, so the picker must be fully closed
+    // first - otherwise our close() tears down the sheet the callback just opened.
+    const finish = ids => { close(); onPick(ids); };
+
     const search = el('input', { type: 'search', placeholder: 'Search 100+ exercises…', value: lastQ, enterkeyhint: 'search' });
     const catRow = el('div', { class: 'chips' });
     const eqRow = el('div', { class: 'chips' });
@@ -34,7 +38,7 @@ export function openPicker(onPick, { multi = true, title = 'Add exercises' } = {
       if (!chosen.size) return;
       bar.append(el('button', {
         class: 'btn wide primary',
-        onclick: () => { onPick([...chosen]); close(); }
+        onclick: () => finish([...chosen])
       }, `Add ${chosen.size} exercise${chosen.size > 1 ? 's' : ''}`));
     }
 
@@ -63,7 +67,7 @@ export function openPicker(onPick, { multi = true, title = 'Add exercises' } = {
       if (!items.length) {
         list.append(el('div', { class: 'empty' },
           el('div', {}, 'No exercise matches that.'),
-          el('button', { class: 'btn sm', style: 'margin-top:12px', onclick: () => createCustom(search.value, id => { chosen.add(id); draw(); refreshBar(); }) }, 'Create "' + esc(search.value || 'custom') + '"')));
+          el('button', { class: 'btn sm', style: 'margin-top:12px', onclick: () => createCustom(search.value, id => reopenWith(id)) }, 'Create "' + esc(search.value || 'custom') + '"')));
         return;
       }
       items.slice(0, 300).forEach(e => {
@@ -71,7 +75,7 @@ export function openPicker(onPick, { multi = true, title = 'Add exercises' } = {
         const row = el('button', {
           class: 'lrow',
           onclick: () => {
-            if (!multi) { onPick([e.id]); close(); return; }
+            if (!multi) { finish([e.id]); return; }
             chosen.has(e.id) ? chosen.delete(e.id) : chosen.add(e.id);
             row.style.borderColor = chosen.has(e.id) ? 'var(--accent)' : '';
             tick.className = 'tick' + (chosen.has(e.id) ? ' on' : '');
@@ -92,8 +96,11 @@ export function openPicker(onPick, { multi = true, title = 'Add exercises' } = {
         list.append(row);
       });
       list.append(el('div', { class: 'center tiny faint', style: 'padding:16px 0' },
-        el('button', { class: 'btn sm ghost', onclick: () => createCustom('', id => { chosen.add(id); draw(); refreshBar(); }) }, '+ Create custom exercise')));
+        el('button', { class: 'btn sm ghost', onclick: () => createCustom('', id => reopenWith(id)) }, '+ Create custom exercise')));
     }
+
+    // createCustom replaces this sheet, so come back to a fresh picker afterwards.
+    const reopenWith = id => openPicker(onPick, { multi, title, preselect: [...chosen, id] });
 
     search.addEventListener('input', draw);
     mkChips(catRow, CATS, () => lastCat, v => lastCat = v);

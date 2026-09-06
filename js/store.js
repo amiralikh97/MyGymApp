@@ -248,6 +248,13 @@ export function saveRoutine(name, exerciseIds) {
   state.routines.push(r); commit(true); return r;
 }
 export function deleteRoutine(id) { state.routines = state.routines.filter(r => r.id !== id); commit(true); }
+export function updateRoutine(id, patch) {
+  const r = state.routines.find(x => x.id === id);
+  if (!r) return null;
+  Object.assign(r, patch);
+  commit(true);
+  return r;
+}
 
 /* ---------------- data portability ---------------- */
 export function exportData() {

@@ -96,7 +96,7 @@ export function showExercise(id, opts = {}) {
 
     /* ---- actions ---- */
     const actions = el('div', { class: 'stack', style: 'margin-top:22px' });
-    if (opts.onAdd) actions.append(el('button', { class: 'btn wide primary', onclick: () => { opts.onAdd(id); close(); } }, 'Add to workout'));
+    if (opts.onAdd) actions.append(el('button', { class: 'btn wide primary', onclick: () => { close(); setTimeout(() => opts.onAdd(id), 280); } }, 'Add to workout'));
     if (opts.back) actions.append(el('button', { class: 'btn wide ghost', onclick: () => { close(); setTimeout(opts.back, 270); } }, '← Back'));
     if (ex.custom) actions.append(el('button', {
       class: 'btn wide danger',

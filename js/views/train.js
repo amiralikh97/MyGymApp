@@ -1,9 +1,9 @@
-import { el, hms, nf, fromKg, toKg, fmtDate, dur, bigN, isWorking } from '../util.js';
+import { el, mount, hms, nf, fromKg, toKg, fmtDate, dur, bigN, isWorking } from '../util.js';
 import { icon, toast, openSheet, confirmSheet, promptSheet } from '../ui.js';
 import {
   state, commit, save, exercise, startWorkout, addEntry, removeEntry, moveEntry,
   finishWorkout, discardWorkout, elapsed, newSet, lastPerformance, prCheck,
-  workoutVolume, stats, saveRoutine, deleteRoutine, sortedWorkouts
+  workoutVolume, stats, saveRoutine, deleteRoutine, updateRoutine, sortedWorkouts
 } from '../store.js';
 import { startRest, stopRest, primeAudio, keepAwake } from '../timer.js';
 import { openPicker } from './picker.js';
@@ -59,10 +59,9 @@ function startView(ctx) {
           el('div', { class: 't' }, r.name),
           el('div', { class: 's' }, r.exerciseIds.map(id => exercise(id)?.name).filter(Boolean).slice(0, 3).join(' · ') + (r.exerciseIds.length > 3 ? ` +${r.exerciseIds.length - 3}` : ''))),
         el('button', {
-          class: 'icon-btn plain', onclick: async () => {
-            if (await confirmSheet('Delete routine?', `"${r.name}" will be removed. Your logged workouts are not affected.`, 'Delete')) { deleteRoutine(r.id); ctx.refresh(); }
-          }
-        }, icon('trash')))))
+          class: 'icon-btn plain', title: 'Edit routine',
+          onclick: () => editRoutine(r.id, ctx)
+        }, icon('edit')))))
       : el('div', { class: 'card muted small center' }, 'Save a set of exercises as a routine to start it in one tap.')));
 
   if (last) {
@@ -364,5 +363,100 @@ function summary(w, ctx) {
         }
       }, 'Save as routine'),
       el('button', { class: 'btn wide primary', onclick: close }, 'Done'));
+  });
+}
+
+
+/* ============================ routine editor ============================ */
+export function editRoutine(routineId, ctx) {
+  const r = state.routines.find(x => x.id === routineId);
+  if (!r) return;
+
+  openSheet(r.name, close => {
+    const wrap = el('div', { class: 'stack' });
+    const list = el('div', {});
+
+    const drawList = () => {
+      list.innerHTML = '';
+      if (!r.exerciseIds.length) {
+        list.append(el('div', { class: 'card muted small center' }, 'No exercises yet. Add some below.'));
+        return;
+      }
+      r.exerciseIds.forEach((id, i) => {
+        const ex = exercise(id);
+        list.append(el('div', { class: 'lrow' },
+          el('div', { class: 'set-no', style: 'width:22px' }, String(i + 1)),
+          el('div', { style: 'flex:1;min-width:0' },
+            el('div', { class: 't' }, ex?.name || 'Unknown exercise'),
+            el('div', { class: 's' }, ex ? `${ex.eq} · ${ex.prim.join(', ') || ex.cat}` : 'no longer in your library')),
+          el('button', {
+            class: 'icon-btn plain', title: 'Move up',
+            onclick: () => {
+              if (i === 0) return;
+              const a = r.exerciseIds;
+              [a[i - 1], a[i]] = [a[i], a[i - 1]];
+              updateRoutine(r.id, { exerciseIds: a }); drawList(); ctx.refresh();
+            }
+          }, icon('up')),
+          el('button', {
+            class: 'icon-btn plain', title: 'Remove',
+            onclick: () => {
+              updateRoutine(r.id, { exerciseIds: r.exerciseIds.filter((_, j) => j !== i) });
+              drawList(); ctx.refresh();
+            }
+          }, icon('trash'))));
+      });
+    };
+    drawList();
+
+    mount(wrap,
+      el('div', { class: 'pill-h' }, `${r.exerciseIds.length} exercise${r.exerciseIds.length === 1 ? '' : 's'}`),
+      list,
+      el('button', {
+        class: 'btn wide',
+        onclick: () => {
+          close();
+          openPicker(ids => {
+            // Skip anything already in the routine rather than duplicating it.
+            const add = ids.filter(id => !r.exerciseIds.includes(id));
+            updateRoutine(r.id, { exerciseIds: [...r.exerciseIds, ...add] });
+            ctx.refresh();
+            toast(add.length ? `Added ${add.length} to "${r.name}"` : 'Already in this routine');
+            editRoutine(r.id, ctx);
+          }, { title: 'Add to ' + r.name });
+        }
+      }, icon('plus'), 'Add exercises'),
+      el('div', { class: 'divider' }),
+      el('button', {
+        class: 'btn wide', onclick: async () => {
+          const name = await promptSheet('Rename routine', { value: r.name, ok: 'Save' });
+          if (name) { updateRoutine(r.id, { name }); ctx.refresh(); toast('Renamed'); }
+        }
+      }, 'Rename'),
+      el('button', {
+        class: 'btn wide primary',
+        onclick: () => {
+          if (state.active) return toast('Finish your current workout first');
+          primeAudio();
+          startWorkout(r.name, r.exerciseIds.map(id => {
+            const prev = lastPerformance(id);
+            const seed = prev?.sets?.filter(isWorking)[0];
+            return {
+              id: Math.random().toString(36).slice(2), exerciseId: id, notes: '',
+              sets: [newSet(seed ? { w: seed.w, wl: seed.wl, wr: seed.wr, reps: seed.reps } : {})]
+            };
+          }));
+          keepAwake(true); close(); ctx.refresh();
+        }
+      }, icon('play'), 'Start this routine'),
+      el('button', {
+        class: 'btn wide danger', onclick: async () => {
+          close();
+          if (await confirmSheet('Delete routine?', `"${r.name}" will be removed. Your logged workouts are not affected.`, 'Delete')) {
+            deleteRoutine(r.id); ctx.refresh(); toast('Routine deleted');
+          }
+        }
+      }, icon('trash'), 'Delete routine'));
+    return wrap;
   });
 }
