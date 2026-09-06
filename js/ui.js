@@ -108,6 +108,14 @@ export function promptSheet(title, { label = '', value = '', placeholder = '', t
 const SVGNS = 'http://www.w3.org/2000/svg';
 const svgEl = (t, a = {}) => { const n = document.createElementNS(SVGNS, t); for (const k in a) n.setAttribute(k, a[k]); return n; };
 
+/** Round a raw axis step up to a human-friendly 1/2/2.5/5 x 10^n value. */
+function niceStep(raw) {
+  if (!(raw > 0)) return 1;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const n = raw / mag;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+}
+
 /**
  * Line chart with an optional dashed comparison series.
  * points: [{x:number(ts), y:number}]
@@ -122,17 +130,20 @@ export function lineChart(points, { h = 170, fmt = null, series2 = null } = {}) 
   let min = Math.min(...all), max = Math.max(...all);
   if (min === max) { min -= Math.max(1, min * .05); max += Math.max(1, max * .05); }
   const pad = (max - min) * .12; min = Math.max(0, min - pad); max += pad;
-  // Enough decimals that the axis labels stay distinct on a narrow range.
-  const span = max - min;
-  const label = fmt || (v => (span < 4 ? v.toFixed(1) : span < 40 ? String(Math.round(v)) : String(Math.round(v))));
+  // Snap the axis to round numbers so the labels read cleanly.
+  const step = niceStep((max - min) / 3);
+  min = Math.max(0, Math.floor(min / step) * step);
+  max = Math.ceil(max / step) * step;
+  const dp = step < 1 ? (step < .1 ? 2 : 1) : 0;
+  const label = fmt || (v => v.toFixed(dp));
   const xs = points.map(p => p.x);
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
   const X = v => padL + (x1 === x0 ? (W - padL - padR) / 2 : (v - x0) / (x1 - x0) * (W - padL - padR));
   const Y = v => padT + (1 - (v - min) / (max - min)) * (H - padT - padB);
 
-  // horizontal grid + y labels
-  for (let i = 0; i <= 3; i++) {
-    const v = min + (max - min) * i / 3, y = Y(v);
+  // horizontal grid + y labels, one per round step
+  for (let v = min; v <= max + 1e-9; v += step) {
+    const y = Y(v);
     svg.append(svgEl('line', { class: 'grid', x1: padL, x2: W - padR, y1: y, y2: y }));
     const t = svgEl('text', { class: 'axis', x: 2, y: y + 3.5 });
     t.textContent = label(v);

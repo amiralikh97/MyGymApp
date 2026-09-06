@@ -18,6 +18,17 @@ export function el(tag, props = {}, ...kids) {
   return n;
 }
 
+/** Append children to an existing node, skipping null/undefined/false.
+ *  Element.append() renders `null` as the literal text "null", so never call it
+ *  directly with a conditional child. */
+export function mount(parent, ...kids) {
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    parent.append(kid.nodeType ? kid : document.createTextNode(kid));
+  }
+  return parent;
+}
+
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const clamp = (n, a, b) => Math.min(b, Math.max(a, n));

@@ -1,4 +1,4 @@
-import { el, nf } from '../util.js';
+import { el, nf, mount } from '../util.js';
 import { toast, openSheet, confirmSheet } from '../ui.js';
 import { state, commit, exportData, importData, wipe, stats } from '../store.js';
 import { beep, primeAudio } from '../timer.js';
@@ -131,7 +131,7 @@ function plateCalc() {
       if (side < 0) { out.append(el('div', { class: 'muted small center' }, 'That is lighter than the bar.')); return; }
       const used = [];
       for (const p of PLATES) { const n = Math.floor(side / p + 1e-9); if (n) { used.push([p, n]); side -= n * p; } }
-      out.append(
+      mount(out,
         el('div', { class: 'pill-h', style: 'margin-bottom:8px' }, 'Per side'),
         used.length
           ? el('div', { class: 'row wrap' }, ...used.map(([p, n]) => el('span', { class: 'chip tag', style: 'font-size:14px;padding:8px 13px' }, `${n} × ${nf(p, 2)}`)))
@@ -164,7 +164,7 @@ function oneRepMax() {
       out.innerHTML = '';
       if (!w || !r) { out.append(el('div', { class: 'muted small center' }, 'Enter a weight and rep count.')); return; }
       const max = w * (1 + Math.min(r, 15) / 30);
-      out.append(
+      mount(out,
         el('div', { class: 'center' },
           el('div', { class: 'clock mono' }, nf(max, 1) + ' ' + U()),
           el('div', { class: 'tiny faint' }, 'estimated 1 rep max')),

@@ -1,4 +1,4 @@
-import { el, nf, fmtDate, fromKg } from '../util.js';
+import { el, nf, fmtDate, fromKg, mount } from '../util.js';
 import { openSheet, lineChart, toast, confirmSheet } from '../ui.js';
 import { exercise, historyFor, personalBests, state, deleteCustomExercise } from '../store.js';
 
@@ -26,13 +26,14 @@ export function showExercise(id, opts = {}) {
     const hist = historyFor(id);
     const pb = personalBests(id);
 
-    body.append(el('div', { class: 'chips', style: 'margin-bottom:12px' },
+    mount(body, el('div', { class: 'chips', style: 'margin-bottom:12px' },
       el('span', { class: 'chip tag' }, ex.eq),
       el('span', { class: 'chip tag2' }, ex.mech),
       el('span', { class: 'chip tag2' }, ex.level),
       ex.force && el('span', { class: 'chip tag2' }, ex.force)));
 
-    if (ex.desc) body.append(el('p', { style: 'margin:0 0 4px' }, ex.desc));
+    body.append(el('p', { style: 'margin:0 0 4px', class: ex.desc ? '' : 'muted' },
+      ex.desc || 'Your own exercise — no notes added. Everything below is tracked the same way as the built-in ones.'));
 
     body.append(el('div', { class: 'card', style: 'margin-top:14px' },
       el('div', { class: 'pill-h' }, 'Muscles worked'),
@@ -41,16 +42,14 @@ export function showExercise(id, opts = {}) {
       ex.sec?.length ? el('div', { class: 'muted small', style: 'margin-top:4px' },
         el('strong', {}, 'Also: '), ex.sec.join(', ')) : null));
 
-    body.append(section('Setup', ex.setup));
-    body.append(section('How to do it', ex.steps));
-    body.append(section('Tips', ex.tips));
+    mount(body, section('Setup', ex.setup), section('How to do it', ex.steps), section('Tips', ex.tips));
 
     if (ex.safety?.length) {
       body.append(el('div', { class: 'note warn', style: 'margin-top:20px' },
         el('h3', { style: 'margin:0 0 8px' }, '⚠ Safety & precautions'),
         el('ul', {}, ...ex.safety.map(t => el('li', {}, t)))));
     }
-    body.append(section('Common mistakes', ex.mistakes));
+    mount(body, section('Common mistakes', ex.mistakes));
 
     /* ---- personal history ---- */
     body.append(el('h3', {}, 'Your history'));
