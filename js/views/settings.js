@@ -5,6 +5,7 @@ import { beep, primeAudio } from '../timer.js';
 import { NVIDIA_URL, DEFAULT_MODEL, aiReady } from '../ai.js';
 
 const U = () => state.settings.unit;
+export const BUILD = '2026.09.06';
 
 export function open(ctx) {
   openSheet('Settings', close => {
@@ -98,8 +99,22 @@ export function open(ctx) {
       }, 'Erase all data')));
 
     body.append(el('div', { class: 'center tiny faint', style: 'padding:22px 0 4px' },
-      'Iron Log · works offline · v1.0',
-      el('div', { style: 'margin-top:4px' }, 'Add to your home screen for a full-screen app.')));
+      'Iron Log · works offline · build ' + BUILD,
+      el('div', { style: 'margin-top:4px' }, 'Add to your home screen for a full-screen app.'),
+      el('button', {
+        class: 'btn sm ghost', style: 'margin-top:10px',
+        onclick: async () => {
+          toast('Checking for updates…');
+          try {
+            const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+            await Promise.all(regs.map(r => r.update()));
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+            toast('Reloading with the latest version…');
+            setTimeout(() => location.reload(), 700);
+          } catch (e) { location.reload(); }
+        }
+      }, 'Force update')));
     return body;
   });
 }

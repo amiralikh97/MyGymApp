@@ -81,7 +81,34 @@ Settings.applyTheme();
 render();
 if (state.active) keepAwake(true);
 
-/* Service worker: offline support. Ignored when opened from file://. */
+/* ---------------------------------------------------------------------------
+ * Service worker: offline support plus automatic updates.
+ *
+ * Without the reload below, a new deploy only takes effect on some later,
+ * unpredictable launch - which looks exactly like a fix that never shipped.
+ * ------------------------------------------------------------------------- */
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  window.addEventListener('load', async () => {
+    // Whether this page was already controlled decides if a controller change
+    // means "updated" (reload) or just "first install" (do nothing).
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      // Check for a new version on launch, when the app is brought back to the
+      // foreground, and hourly while it stays open.
+      const check = () => reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') check();
+      });
+      setInterval(check, 60 * 60 * 1000);
+    } catch (e) { /* offline, or served without a worker */ }
+  });
 }
