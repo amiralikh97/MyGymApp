@@ -9,15 +9,31 @@
  *
  * Setup:
  *   Workers → Create → paste this → Deploy
- *   Settings → Variables and Secrets:
- *       NVIDIA_API_KEY   (secret, encrypted)  your nvapi-... key
- *       ALLOWED_ORIGIN   (plain text)         e.g. https://amiralikh97.github.io
- *                                             comma-separate for several origins
+ *   Settings → Variables and Secrets → Add:
+ *       NVIDIA_API_KEY   type Secret   your nvapi-... key
+ *       ALLOWED_ORIGIN   type Text     e.g. https://amiralikh97.github.io
+ *                                      optional; comma-separate for several
+ *   Deploy again after adding them.
+ *
+ *   Cannot find that screen? Use FALLBACK_API_KEY below instead. ALLOWED_ORIGIN
+ *   is optional - without it the proxy accepts any origin, which is workable
+ *   for personal use but means anyone who learns your Worker URL could use it.
  *   Then point the app at:  https://<worker>.workers.dev/v1/chat/completions
  *   and leave the app's API key field empty.
  */
 
 const UPSTREAM = 'https://integrate.api.nvidia.com/v1/chat/completions';
+
+// ---------------------------------------------------------------------------
+// If you cannot find the dashboard's Variables UI, you can fill these in here
+// instead. Anything set as a dashboard variable/secret wins over these.
+//
+// This file lives in a PUBLIC repo, so if you paste your key below, do NOT
+// commit it - edit it only in the Cloudflare editor. Setting NVIDIA_API_KEY as
+// an encrypted secret in the dashboard is still the better option.
+// ---------------------------------------------------------------------------
+const FALLBACK_API_KEY = '';        // e.g. 'nvapi-...'  (leave empty if using a secret)
+const FALLBACK_ALLOWED_ORIGIN = ''; // e.g. 'https://amiralikh97.github.io'
 
 // Models this proxy is willing to forward. Stops a leaked worker URL being
 // used to run anything at your expense.
@@ -31,7 +47,7 @@ const MAX_BODY_BYTES = 200_000;
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
-    const allowed = (env.ALLOWED_ORIGIN || '')
+    const allowed = (env.ALLOWED_ORIGIN || FALLBACK_ALLOWED_ORIGIN || '')
       .split(',').map(s => s.trim()).filter(Boolean);
 
     // With no ALLOWED_ORIGIN set, fall back to echoing the origin so local
@@ -57,8 +73,9 @@ export default {
     if (request.method !== 'POST') {
       return json({ error: 'POST only.' }, 405, cors);
     }
-    if (!env.NVIDIA_API_KEY) {
-      return json({ error: 'NVIDIA_API_KEY secret is not set on this Worker.' }, 500, cors);
+    const apiKey = env.NVIDIA_API_KEY || FALLBACK_API_KEY;
+    if (!apiKey) {
+      return json({ error: 'No API key. Set the NVIDIA_API_KEY secret on this Worker, or fill in FALLBACK_API_KEY at the top of the code.' }, 500, cors);
     }
 
     const raw = await request.text();
@@ -88,7 +105,7 @@ export default {
       upstream = await fetch(UPSTREAM, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.NVIDIA_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           Accept: payload.stream ? 'text/event-stream' : 'application/json'
         },

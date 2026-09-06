@@ -65,10 +65,19 @@ proxy — about 100 lines, and Cloudflare's free tier allows 100,000 requests a 
 1. Sign up at [dash.cloudflare.com](https://dash.cloudflare.com) (free, no card).
 2. **Compute (Workers) → Create → Start from Hello World → Deploy.**
 3. **Edit code**, replace everything with the contents of `proxy/cloudflare-worker.js`, Deploy.
-4. **Settings → Variables and Secrets**, add:
+4. **Settings → Variables and Secrets → Add** (some dashboards call this
+   *Settings → Variables*, with an **Encrypt** button instead of a type dropdown;
+   it only appears after the Worker's first deploy):
    - `NVIDIA_API_KEY` — type **Secret**, value is your `nvapi-…` key
    - `ALLOWED_ORIGIN` — type **Text**, value `https://YOUR-USERNAME.github.io`
-   Deploy again.
+
+   Then **Deploy** again.
+
+   `ALLOWED_ORIGIN` is **optional** — without it the proxy accepts any origin,
+   which is fine to get going. If you cannot find that screen at all, set
+   `FALLBACK_API_KEY` and `FALLBACK_ALLOWED_ORIGIN` at the top of the Worker code
+   instead. Edit those only in the Cloudflare editor; never commit a key to this
+   repo.
 5. In the app: **Settings → AI Coach → Set up**, paste your Worker URL with
    `/v1/chat/completions` on the end, and **leave the API key field empty** — the Worker
    holds it. Tap **Test connection**.
