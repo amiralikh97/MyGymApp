@@ -1,12 +1,13 @@
 import { $, el } from './util.js';
 import { icon, closeSheet, sheetOpen } from './ui.js';
 import { state } from './store.js';
-import { keepAwake } from './timer.js';
+import { keepAwake, onRest, restLeft } from './timer.js';
 import * as Train from './views/train.js';
 import * as Library from './views/library.js';
 import * as Progress from './views/progress.js';
 import * as History from './views/history.js';
 import * as Settings from './views/settings.js';
+import { openChat } from './views/chat.js';
 
 const TABS = [
   { id: 'train', label: 'Train', icon: 'dumbbell', title: 'Train', mod: Train },
@@ -57,8 +58,15 @@ function drawNav() {
 history.replaceState({ sheet: false }, '');
 window.addEventListener('popstate', () => { if (sheetOpen()) closeSheet(); });
 new MutationObserver(() => {
-  if (sheetOpen() && !history.state?.sheet) history.pushState({ sheet: true }, '');
+  const open = sheetOpen();
+  if (open && !history.state?.sheet) history.pushState({ sheet: true }, '');
+  $('#aiFab').style.opacity = open ? '0' : '';
+  $('#aiFab').style.pointerEvents = open ? 'none' : '';
 }).observe($('#sheet'), { attributes: true, attributeFilter: ['class'] });
+
+/* Floating AI coach button. Lifts clear of the rest timer when it appears. */
+$('#aiFab').addEventListener('click', () => openChat(ctx));
+onRest(() => $('#aiFab').classList.toggle('shift', restLeft() > 0));
 
 $('#sheetClose').addEventListener('click', closeSheet);
 $('#scrim').addEventListener('click', closeSheet);

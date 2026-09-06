@@ -1,11 +1,12 @@
 // Bump CACHE when you deploy changes so clients pick them up.
-const CACHE = 'ironlog-v1';
+const CACHE = 'ironlog-v2';
 const ASSETS = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
-  './js/app.js', './js/store.js', './js/util.js', './js/ui.js', './js/timer.js',
+  './js/app.js', './js/store.js', './js/util.js', './js/ui.js', './js/timer.js', './js/ai.js',
   './js/data/exercises.js',
   './js/views/train.js', './js/views/library.js', './js/views/progress.js',
   './js/views/history.js', './js/views/settings.js', './js/views/picker.js', './js/views/exercise.js',
+  './js/views/chat.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-180.png', './icons/icon-maskable.png'
 ];
 

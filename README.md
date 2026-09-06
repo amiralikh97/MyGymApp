@@ -33,6 +33,13 @@ Every exercise includes, in plain language:
 - Weekly training volume, sets per muscle group, workout frequency
 - Bodyweight tracking
 
+**AI Coach** (optional)
+A robot button in the bottom-right corner opens a chat with an AI coach that can see
+your workout history, personal records and exercise library. It can review your
+training, build plans, and — with a confirmation tap — add exercises to your library,
+add exercises to the workout in progress, or save routines. Requires a one-time setup
+(see below).
+
 **Also**
 - Routines — save a set of exercises and start it in one tap
 - Repeat any previous workout
@@ -41,10 +48,44 @@ Every exercise includes, in plain language:
 - JSON export / import for backups
 - Works fully offline once loaded; installable to your home screen
 
+## Setting up the AI coach
+
+Two things make this more than a one-line integration, and both are unavoidable:
+
+1. **NVIDIA's API cannot be called from a browser.** It sends no CORS headers, so the
+   request is blocked before it leaves the page. Verified — a direct `fetch` fails with
+   `TypeError: Failed to fetch`.
+2. **An API key in a static site is public.** Anything shipped to the browser can be read
+   from the page source. On a public repo, a hardcoded key is simply given away.
+
+A small proxy fixes both: it adds the CORS headers, and it holds the key server-side so
+the key never reaches the browser or the repository. `proxy/cloudflare-worker.js` is that
+proxy — about 100 lines, and Cloudflare's free tier allows 100,000 requests a day.
+
+1. Sign up at [dash.cloudflare.com](https://dash.cloudflare.com) (free, no card).
+2. **Compute (Workers) → Create → Start from Hello World → Deploy.**
+3. **Edit code**, replace everything with the contents of `proxy/cloudflare-worker.js`, Deploy.
+4. **Settings → Variables and Secrets**, add:
+   - `NVIDIA_API_KEY` — type **Secret**, value is your `nvapi-…` key
+   - `ALLOWED_ORIGIN` — type **Text**, value `https://YOUR-USERNAME.github.io`
+   Deploy again.
+5. In the app: **Settings → AI Coach → Set up**, paste your Worker URL with
+   `/v1/chat/completions` on the end, and **leave the API key field empty** — the Worker
+   holds it. Tap **Test connection**.
+
+The Worker also restricts which models can be requested and caps `max_tokens`, so a
+leaked Worker URL cannot be used to run arbitrary jobs on your account.
+
+The app's key field exists for the case where you run it somewhere without CORS
+restrictions. Anything typed there stays in `localStorage` on that device only and is
+stripped from exported backups.
+
 ## Your data
 
-Everything is stored in your browser's `localStorage` on your own device. Nothing is
-uploaded anywhere — there is no backend. Clearing your browser data for the site will
+Everything is stored in your browser's `localStorage` on your own device. There is no
+backend and nothing is uploaded — with one exception: if you enable the AI coach, your
+chat messages and a summary of your training (recent workouts, personal records,
+exercise names, bodyweight) are sent to NVIDIA's API to answer each question. Clearing your browser data for the site will
 erase your log, so use **Settings → Export backup** now and then.
 
 ## Running it locally
@@ -101,8 +142,10 @@ js/store.js             state, persistence, analytics
 js/util.js              formatting and training math
 js/ui.js                sheets, toasts, SVG charts
 js/timer.js             rest timer, audio, wake lock
+js/ai.js                AI client, context building, action parsing
 js/data/exercises.js    the exercise library
-js/views/               train · library · progress · history · settings · picker · exercise
+js/views/               train · library · progress · history · settings · picker · exercise · chat
+proxy/                  Cloudflare Worker that holds the API key and adds CORS
 ```
 
 No build step. No npm. Edit a file, reload the page.

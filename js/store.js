@@ -14,14 +14,16 @@ const DEFAULTS = {
     vibrate: true,
     keepAwake: true,
     theme: 'auto',
-    plateIncrement: 2.5
+    plateIncrement: 2.5,
+    ai: { url: '', key: '', model: 'deepseek-ai/deepseek-v4-pro-0813', proxyHoldsKey: false }
   },
   custom: [],          // user-created exercises
   workouts: [],        // finished workouts (newest last)
   active: null,        // in-progress workout
   routines: [],        // saved templates
   bodyweight: [],      // {t, kg}
-  goals: {}            // exerciseId -> target weight (kg)
+  goals: {},           // exerciseId -> target weight (kg)
+  chat: []             // AI coach conversation
 };
 
 function load() {
@@ -31,7 +33,10 @@ function load() {
     const d = JSON.parse(raw);
     return {
       ...structuredClone(DEFAULTS), ...d,
-      settings: { ...DEFAULTS.settings, ...(d.settings || {}) }
+      settings: {
+        ...DEFAULTS.settings, ...(d.settings || {}),
+        ai: { ...DEFAULTS.settings.ai, ...((d.settings || {}).ai || {}) }
+      }
     };
   } catch (e) {
     console.error('load failed', e);
@@ -246,7 +251,13 @@ export function deleteRoutine(id) { state.routines = state.routines.filter(r => 
 
 /* ---------------- data portability ---------------- */
 export function exportData() {
-  return JSON.stringify({ ...state, exported: new Date().toISOString(), app: 'ironlog' }, null, 2);
+  // The API key is a credential, not training data - keep it out of backups.
+  const { ai, ...settings } = state.settings;
+  return JSON.stringify({
+    ...state,
+    settings: { ...settings, ai: { ...ai, key: '' } },
+    exported: new Date().toISOString(), app: 'ironlog'
+  }, null, 2);
 }
 export function importData(json, merge = false) {
   const d = JSON.parse(json);
@@ -265,6 +276,7 @@ export function importData(json, merge = false) {
   invalidateExercises();
   commit(true);
 }
+export function clearChat() { state.chat = []; commit(true); }
 export function wipe() {
   Object.assign(state, structuredClone(DEFAULTS));
   invalidateExercises();
